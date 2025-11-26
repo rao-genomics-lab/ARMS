@@ -1,0 +1,5 @@
+samplename	purity	ploidy	ploidy.tumour
+plate2-1A-2H_lcmad_007_dupmarked.bam	plate2-1A-2H_lcmad_007_dupmarked.bam	1	1.93	1.9474170214949
+plate2-1A-2H_lcmad_011_dupmarked.bam	plate2-1A-2H_lcmad_011_dupmarked.bam	1	1.93	1.94773669306849
+plate2-5A-6H_lcmad_004_dupmarked.bam	plate2-5A-6H_lcmad_004_dupmarked.bam	1	1.93	1.94739920875602
+plate2-5A-6H_lcmad_015_dupmarked.bam	plate2-5A-6H_lcmad_015_dupmarked.bam	1	1.94	1.94728894801915

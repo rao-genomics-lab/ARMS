@@ -1,0 +1,81 @@
+Package: ARMS
+Type: Package
+Title: Adaptive Resolution Multiscale Spatial DNA sequencing
+Version: 0.99.0
+Authors@R: c(
+    person("Rao", "Srinivasa",           
+    email = "srinivasa.rao@nds.ox.ac.uk",
+    role = c("aut", "cre")),
+    person("Cristian", "Soitu",           
+    email = "soitu.cristi@gmail.com",
+           role = "aut"))
+Description: ARMS provides a complete workflow for detecting copy number alterations in
+    spatial genomics data. It wraps ASCAT.sc for single-cell copy
+    number calling, performs hierarchical clustering to identify clonal
+    populations, and generates publication-ready visualizations including
+    heatmaps and spatial maps. The package supports pseudobulk analysis
+    for improved signal-to-noise ratio.
+License: GPL-3
+Encoding: UTF-8
+LazyData: true
+Depends:
+    R (>= 4.3.0)
+Imports:
+    ASCAT.sc,
+    ComplexHeatmap,
+    circlize,
+    ggplot2,
+    dplyr,
+    tidyr,
+    readr,
+    stringr,
+    uwot,
+    RColorBrewer,
+    sf,
+    parallel,
+    stats,
+    methods,
+    IRanges,
+    GenomicRanges,
+    DNAcopy,
+    cluster,
+    dynamicTreeCut,
+    pvclust,
+    geojsonio,
+    grid,
+    gridExtra,
+    Rsamtools,
+    Biostrings,
+    copynumber,
+    conumee,
+    xgboost,
+    shiny,
+    shinybusy,
+    shinythemes,
+    shinyWidgets,
+    shinycssloaders,
+    shinyjs,
+    shinyalert,
+    shinydashboard,
+    shinyFiles,
+    spatstat.geom,
+    dipsaus
+Suggests:
+    testthat (>= 3.0.0),
+    knitr,
+    rmarkdown,
+    BiocStyle
+biocViews:
+    CopyNumberVariation,
+    SingleCell,
+    Spatial,
+    Clustering,
+    Visualization,
+    Workflow
+VignetteBuilder: knitr
+URL: https://github.com/yourusername/ARMS
+BugReports: https://github.com/yourusername/ARMS/issues
+Roxygen: list(markdown = TRUE)
+RoxygenNote: 7.3.2
+Config/testthat/edition: 3
+Remotes: VanLoo-lab/ASCAT.sc
