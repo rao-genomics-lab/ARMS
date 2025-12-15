@@ -162,15 +162,13 @@ plot_ploidy_distribution(
 # LogR variance per sample (QC metric)
 plot_logr_variance(
   logr_matrix = logr_matrix,
-  clusters = NULL,  # Can pass NULL before clustering
   output_file = "logr_variance.pdf"
 )
 
 # Chromosomal instability index
 plot_chromosomal_instability(
-  logr_matrix = logr_matrix,
+  copy_number_matrix = profiles$copy_number_matrix,
   grid = genomic_grid,
-  clusters = NULL,
   output_file = "chromosomal_instability.pdf"
 )
 ```
@@ -184,7 +182,6 @@ Identify clonal populations using hierarchical clustering with dynamic tree cutt
 clustering <- hierarchical_clustering(
   logr_matrix = logr_matrix,
   method = "ward.D2",
-  distance = "euclidean",
   min_cluster_size = 3
 )
 
@@ -197,8 +194,8 @@ print(paste("Found", max(clustering$clusters), "clusters"))
 
 **Key parameters:**
 - `method`: Linkage method ("ward.D2" recommended for compact clusters)
-- `distance`: Distance metric ("euclidean" or "correlation")
 - `min_cluster_size`: Minimum cells required per cluster
+- `use_dynamic`: Use dynamic tree cutting with recursive splitting (default: TRUE)
 
 ## Step 5: Visualization - Heatmaps and UMAP
 
@@ -223,7 +220,8 @@ plot_logr_heatmap(
 plot_logr_heatmap(
   logr_matrix = logr_matrix[1:50, ],
   grid = genomic_grid,
-  clusters = clustering$clusters[1:50]
+  clusters = clustering$clusters[1:50],
+  output_file = "logr_heatmap_subset.pdf"
 )
 ```
 
@@ -293,21 +291,19 @@ each cluster:
 
 ```{r pseudobulk, eval=FALSE}
 # Fast pseudobulk from bin counts (no BAM merging required!)
-pseudobulk <- create_pseudobulk_from_bins(
-  bam_files = list.files("bams/", pattern = "\\.bam$", full.names = TRUE),
+pseudobulk_tracks <- create_pseudobulk_from_bins(
+  ascat_rda_file = file.path(ascat_output_dir, paste0(project_name, ".Rda")),
   clusters = clustering$clusters,
-  chr = paste0("chr", c(1:22, "X")),
-  binsize = 30000,
-  genome = "hg38",
-  output_dir = "pseudobulk_output"
+  sample_names = profiles$sample_names,
+  output_dir = "pseudobulk_output",
+  min_samples = 3
 )
 
 # Run ASCAT on pseudobulk tracks
 pseudobulk_ascat <- run_ascat_on_pseudobulk_tracks(
-  cluster_tracks = pseudobulk$tracks,
-  res = profiles,  # Original ASCAT result for parameters
-  output_dir = "pseudobulk_ascat",
-  cores = 4
+  pseudobulk_tracks = pseudobulk_tracks,
+  ascat_rda_file = file.path(ascat_output_dir, paste0(project_name, ".Rda")),
+  output_dir = "pseudobulk_ascat"
 )
 
 # Compare single-cell vs pseudobulk quality
@@ -363,18 +359,15 @@ Simulate bulk sequencing by merging all cells:
 
 ```{r bulk, eval=FALSE}
 # Create bulk profile
-bulk <- create_bulk_from_bins(
-  bam_files = list.files("bams/", pattern = "\\.bam$", full.names = TRUE),
-  chr = paste0("chr", c(1:22, "X")),
-  binsize = 30000,
-  genome = "hg38",
+bulk_track <- create_bulk_from_bins(
+  ascat_rda_file = file.path(ascat_output_dir, paste0(project_name, ".Rda")),
   output_dir = "bulk_output"
 )
 
 # Run ASCAT on bulk
 bulk_ascat <- run_ascat_on_bulk_track(
-  bulk_track = bulk$track,
-  res = profiles,
+  bulk_track = bulk_track,
+  ascat_rda_file = file.path(ascat_output_dir, paste0(project_name, ".Rda")),
   output_dir = "bulk_ascat"
 )
 
@@ -392,7 +385,7 @@ plot_logr_heatmap(
 Here's a complete end-to-end example from loading profiles through all analyses:
 
 ```{r complete_example, eval=FALSE}
-library(ARMSPACKAGE)
+library(ARMS)
 
 # Load ASCAT.sc profiles
 profiles <- load_ascat_profiles(
@@ -403,8 +396,8 @@ profiles <- load_ascat_profiles(
 
 # Quality control plots
 plot_ploidy_distribution(profiles$copy_number_matrix, "ploidy.pdf")
-plot_logr_variance(profiles$logr_matrix, NULL, "variance.pdf")
-plot_chromosomal_instability(profiles$logr_matrix, profiles$grid, NULL, "instability.pdf")
+plot_logr_variance(profiles$logr_matrix, "variance.pdf")
+plot_chromosomal_instability(profiles$copy_number_matrix, profiles$grid, "instability.pdf")
 
 # Hierarchical clustering
 clustering <- hierarchical_clustering(
@@ -426,18 +419,17 @@ morans_i <- calculate_morans_i(tiles, matches, clustering$clusters)
 plot_spatial_coherence(morans_i, "spatial_coherence.pdf")
 
 # Pseudobulk analysis
-pseudobulk <- create_pseudobulk_from_bins(
-  bam_files = list.files("bams/", pattern = "\\.bam$", full.names = TRUE),
+pseudobulk_tracks <- create_pseudobulk_from_bins(
+  ascat_rda_file = "ascat_output/example.Rda",
   clusters = clustering$clusters,
-  chr = paste0("chr", c(1:22, "X")),
-  binsize = 30000,
-  genome = "hg38",
-  output_dir = "pseudobulk_output"
+  sample_names = profiles$sample_names,
+  output_dir = "pseudobulk_output",
+  min_samples = 3
 )
 
 pseudobulk_ascat <- run_ascat_on_pseudobulk_tracks(
-  cluster_tracks = pseudobulk$tracks,
-  res = profiles,
+  pseudobulk_tracks = pseudobulk_tracks,
+  ascat_rda_file = "ascat_output/example.Rda",
   output_dir = "pseudobulk_ascat"
 )
 
@@ -460,15 +452,16 @@ plot_logr_heatmap(profiles$logr_matrix, profiles$grid, refined_clusters, "heatma
 plot_cluster_correlation(profiles$logr_matrix, clustering$clusters, "cluster_correlation.pdf")
 
 # Bulk profile simulation
-bulk <- create_bulk_from_bins(
-  bam_files = list.files("bams/", pattern = "\\.bam$", full.names = TRUE),
-  chr = paste0("chr", c(1:22, "X")),
-  binsize = 30000,
-  genome = "hg38",
+bulk_track <- create_bulk_from_bins(
+  ascat_rda_file = "ascat_output/example.Rda",
   output_dir = "bulk_output"
 )
 
-bulk_ascat <- run_ascat_on_bulk_track(bulk$track, profiles, "bulk_ascat")
+bulk_ascat <- run_ascat_on_bulk_track(
+  bulk_track = bulk_track,
+  ascat_rda_file = "ascat_output/example.Rda",
+  output_dir = "bulk_ascat"
+)
 ```
 
 # Tips and Best Practices
@@ -483,7 +476,7 @@ bulk_ascat <- run_ascat_on_bulk_track(bulk$track, profiles, "bulk_ascat")
 **Clustering:**
 - Start with `min_cluster_size = 3-5` to avoid spurious clusters
 - Use `method = "ward.D2"` for tight, spherical clusters
-- Try `distance = "correlation"` if samples have variable coverage
+- Set `use_dynamic = TRUE` for automatic cluster detection (default)
 
 **Cluster refinement:**
 - Use `correlation_threshold = 0.9-0.95` to merge similar clones

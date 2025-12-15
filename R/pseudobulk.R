@@ -82,21 +82,25 @@ create_pseudobulk_from_bins <- function(ascat_rda_file, clusters, sample_names,
     message(sprintf("Processing cluster %d with %d samples...", cluster_id, length(cluster_track_ids)))
 
     # Sum bin counts across all chromosomes
+    # IMPORTANT: Use nlCTS.tumour (normalized) not lCTS.tumour (raw) to match lGCT resolution
     pseudobulk_track <- list()
     pseudobulk_track$lCTS.tumour <- list()
 
     # Initialize with first track structure
     first_track <- res$allTracks[[cluster_track_ids[1]]]
 
-    for (chr_idx in seq_along(first_track$lCTS.tumour)) {
-      # Start with first sample's bins
-      chr_data <- first_track$lCTS.tumour[[chr_idx]]
+    # Use nlCTS.tumour (normalized bins) which matches lGCT resolution
+    for (chr_idx in seq_along(first_track$nlCTS.tumour)) {
+      # Start with first sample's normalized bins
+      chr_data <- first_track$nlCTS.tumour[[chr_idx]]
       summed_records <- chr_data$records
+      summed_nucleotides <- chr_data$nucleotides
 
       # Add counts from remaining samples
       for (track_id in cluster_track_ids[-1]) {
         track <- res$allTracks[[track_id]]
-        summed_records <- summed_records + track$lCTS.tumour[[chr_idx]]$records
+        summed_records <- summed_records + track$nlCTS.tumour[[chr_idx]]$records
+        summed_nucleotides <- summed_nucleotides + track$nlCTS.tumour[[chr_idx]]$nucleotides
       }
 
       # Create summed track for this chromosome
@@ -107,7 +111,7 @@ create_pseudobulk_from_bins <- function(ascat_rda_file, clusters, sample_names,
         width = chr_data$width,
         file = sprintf("cluster_%d", cluster_id),
         records = summed_records,
-        nucleotides = chr_data$nucleotides
+        nucleotides = summed_nucleotides
       )
     }
 
@@ -235,15 +239,18 @@ create_bulk_from_bins <- function(ascat_rda_file, output_dir) {
   bulk_track <- list()
   bulk_track$lCTS.tumour <- list()
 
-  for (chr_idx in seq_along(first_track$lCTS.tumour)) {
-    # Start with first sample's bins
-    chr_data <- first_track$lCTS.tumour[[chr_idx]]
+  # Use nlCTS.tumour (normalized bins) which matches lGCT resolution
+  for (chr_idx in seq_along(first_track$nlCTS.tumour)) {
+    # Start with first sample's normalized bins
+    chr_data <- first_track$nlCTS.tumour[[chr_idx]]
     summed_records <- chr_data$records
+    summed_nucleotides <- chr_data$nucleotides
 
     # Add counts from all remaining samples
     for (track_id in 2:n_tracks) {
       track <- res$allTracks[[track_id]]
-      summed_records <- summed_records + track$lCTS.tumour[[chr_idx]]$records
+      summed_records <- summed_records + track$nlCTS.tumour[[chr_idx]]$records
+      summed_nucleotides <- summed_nucleotides + track$nlCTS.tumour[[chr_idx]]$nucleotides
     }
 
     # Create summed track for this chromosome
@@ -254,7 +261,7 @@ create_bulk_from_bins <- function(ascat_rda_file, output_dir) {
       width = chr_data$width,
       file = "bulk",
       records = summed_records,
-      nucleotides = chr_data$nucleotides
+      nucleotides = summed_nucleotides
     )
   }
 
