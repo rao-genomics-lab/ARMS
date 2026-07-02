@@ -33,7 +33,7 @@ create_cluster_colors <- function(clusters, max_clusters = 24) {
 #' @param grid Genomic grid with chr and position columns
 #' @param matrix Data matrix for column dimension matching
 #' @return HeatmapAnnotation object with chromosome labels
-#' @importFrom ComplexHeatmap HeatmapAnnotation anno_mark
+#' @importFrom ComplexHeatmap HeatmapAnnotation anno_text
 #' @importFrom grid gpar unit
 #' @keywords internal
 create_chr_annotation <- function(grid, matrix) {
@@ -66,6 +66,10 @@ create_chr_annotation <- function(grid, matrix) {
   # Create chromosome labels (strip "chr" prefix for cleaner display)
   chr_labels <- gsub("chr", "", unique_chrs)
 
+  # Build a per-column label vector: empty except at each chromosome's midpoint
+  label_vec <- rep("", ncol(matrix))
+  label_vec[round(chr_midpoints)] <- chr_labels
+
   # Create simple block annotation with labels
   chr_annotation <- HeatmapAnnotation(
     Chromosome = chr_vector,
@@ -74,15 +78,13 @@ create_chr_annotation <- function(grid, matrix) {
     show_legend = FALSE,
     simple_anno_size = unit(3, "mm"),
     annotation_label = list(Chromosome = ""),
-    # Add chromosome number labels
-    foo = anno_mark(
-      at = chr_midpoints,
-      labels = chr_labels,
+    # Add chromosome number labels at midpoints (all chromosomes shown)
+    foo = anno_text(
+      label_vec,
       which = "column",
-      side = "top",
-      labels_gp = gpar(fontsize = 8),
-      link_height = unit(2, "mm"),
-      padding = unit(0.5, "mm")
+      rot = 0,
+      just = "center",
+      gp = gpar(fontsize = 10)
     )
   )
 
@@ -99,6 +101,8 @@ create_chr_annotation <- function(grid, matrix) {
 #' @param logr_range Color range for LogR
 #' @param width Width in inches
 #' @param height Height in inches
+#' @param show_sample_names Logical, if TRUE display sample/tile ID row labels (default FALSE)
+#' @param row_names_fontsize Font size for row labels when show_sample_names = TRUE (default 6)
 #' @importFrom ComplexHeatmap Heatmap rowAnnotation draw
 #' @importFrom circlize colorRamp2
 #' @importFrom grid gpar unit
@@ -110,7 +114,8 @@ create_chr_annotation <- function(grid, matrix) {
 #' }
 plot_logr_heatmap <- function(logr_matrix, grid, clusters, output_file,
                               copy_number_matrix = NULL,
-                              logr_range = 2.0, width = 20, height = 8) {
+                              logr_range = 2.0, width = 20, height = 8,
+                              show_sample_names = FALSE, row_names_fontsize = 6) {
 
   message("Generating LogR heatmap...")
   message(sprintf("Matrix dimensions: %d rows x %d cols", nrow(logr_matrix), ncol(logr_matrix)))
@@ -189,7 +194,8 @@ plot_logr_heatmap <- function(logr_matrix, grid, clusters, output_file,
     row_title = "C%s",
     row_title_side = "left",
     row_title_gp = gpar(fontsize = 10),
-    show_row_names = FALSE,
+    show_row_names = show_sample_names,
+    row_names_gp = gpar(fontsize = row_names_fontsize),
     show_column_names = FALSE,
     column_title = "Genomic Coordinates",
     column_title_gp = gpar(fontsize = 12),
@@ -459,18 +465,30 @@ plot_umap <- function(umap_coords, clusters, output_file) {
 
 #' Plot spatial distribution of clusters on tissue coordinates
 #'
-#' @param spatial_data Data frame with x, y, cluster columns
-#' @param tiles sf object with tile geometries for context
+#' @param spatial_data Data frame with sample, tile, x, y, cluster columns
+#' @param tiles sf object with tile geometries
 #' @param output_file Output PDF path
-#' @importFrom ggplot2 ggplot aes geom_polygon geom_point scale_fill_manual coord_fixed theme_minimal theme labs ggsave element_blank
+#' @param use_polygons Logical, if TRUE (default) fills actual tile polygons with cluster colors,
+#'                     if FALSE uses colored square points at coordinates
+#' @param flipped Logical, if TRUE (default) reverses the y-axis so the origin
+#'                is in the top-left corner, matching typical image coordinates.
+#'                Set to FALSE for standard mathematical orientation (origin bottom-left).
+#' @importFrom ggplot2 ggplot aes geom_polygon geom_point scale_fill_manual scale_y_reverse coord_fixed theme_minimal theme labs ggsave element_blank
 #' @importFrom sf st_coordinates
-#' @importFrom dplyr %>% filter
+#' @importFrom dplyr %>% filter left_join
 #' @export
 #' @examples
 #' \dontrun{
+#' # Default: fill polygons with cluster colors, y-axis flipped (origin top-left)
 #' plot_spatial_clusters(spatial_data, tiles, "spatial.pdf")
+#'
+#' # Disable y-axis flip (origin bottom-left, standard mathematical orientation)
+#' plot_spatial_clusters(spatial_data, tiles, "spatial.pdf", flipped = FALSE)
+#'
+#' # Use colored square points instead of filled polygons
+#' plot_spatial_clusters(spatial_data, tiles, "spatial.pdf", use_polygons = FALSE)
 #' }
-plot_spatial_clusters <- function(spatial_data, tiles, output_file) {
+plot_spatial_clusters <- function(spatial_data, tiles, output_file, use_polygons = TRUE, flipped = TRUE) {
 
   message("Generating spatial cluster plot...")
 
@@ -504,22 +522,61 @@ plot_spatial_clusters <- function(spatial_data, tiles, output_file) {
     group = tiles_coords[, "L2"]
   )
 
-  # Create plot with filled squares instead of points
-  p <- ggplot(spatial_data, aes(x = x, y = y)) +
-    geom_polygon(data = tiles_df,
-                 aes(x = x, y = y, group = group),
-                 fill = NA, color = "gray80", linewidth = 0.3,
-                 inherit.aes = FALSE) +
-    geom_point(aes(fill = cluster_char), size = 4, shape = 22, color = "black", stroke = 0.3) +
-    scale_fill_manual(values = cluster_colors, name = "Cluster") +
-    coord_fixed() +
-    theme_minimal() +
-    theme(
-      panel.grid = element_blank(),
-      axis.title = element_blank(),
-      legend.position = "right"
-    ) +
-    labs(title = "Spatial Distribution of Clusters")
+  if (use_polygons) {
+    # NEW DEFAULT BEHAVIOR: Fill actual polygons with cluster colors
+    message("Filling tile polygons with cluster colors...")
+
+    # Add tile names to tiles_df for matching
+    # The group column corresponds to row numbers in the tiles object
+    tiles_df$tile_name <- tiles$name[tiles_df$group]
+
+    # Match cluster information to tiles
+    tile_cluster_map <- spatial_data[, c("tile", "cluster_char")]
+    names(tile_cluster_map) <- c("tile_name", "cluster_char")
+
+    # Merge cluster info into tiles_df
+    tiles_df <- tiles_df %>%
+      left_join(tile_cluster_map, by = "tile_name")
+
+    # Create plot with filled polygons
+    p <- ggplot() +
+      geom_polygon(data = tiles_df,
+                   aes(x = x, y = y, group = group, fill = cluster_char),
+                   color = "gray30", linewidth = 0.3) +
+      scale_fill_manual(values = cluster_colors, name = "Cluster", na.value = "gray90") +
+      coord_fixed() +
+      theme_minimal() +
+      theme(
+        panel.grid = element_blank(),
+        axis.title = element_blank(),
+        legend.position = "right"
+      ) +
+      labs(title = "Spatial Distribution of Clusters")
+
+  } else {
+    # OPTIONAL BEHAVIOR: Use colored square points (old default)
+    message("Using colored square points at sample coordinates...")
+
+    p <- ggplot(spatial_data, aes(x = x, y = y)) +
+      geom_polygon(data = tiles_df,
+                   aes(x = x, y = y, group = group),
+                   fill = NA, color = "gray80", linewidth = 0.3,
+                   inherit.aes = FALSE) +
+      geom_point(aes(fill = cluster_char), size = 4, shape = 22, color = "black", stroke = 0.3) +
+      scale_fill_manual(values = cluster_colors, name = "Cluster") +
+      coord_fixed() +
+      theme_minimal() +
+      theme(
+        panel.grid = element_blank(),
+        axis.title = element_blank(),
+        legend.position = "right"
+      ) +
+      labs(title = "Spatial Distribution of Clusters")
+  }
+
+  if (flipped) {
+    p <- p + scale_y_reverse()
+  }
 
   ggsave(output_file, plot = p, width = 10, height = 8)
 

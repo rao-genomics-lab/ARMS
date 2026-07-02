@@ -45,6 +45,7 @@ Imports:
     grid,
     gridExtra,
     Rsamtools,
+    BSgenome,
     Biostrings,
     copynumber,
     conumee,
@@ -64,7 +65,9 @@ Suggests:
     testthat (>= 3.0.0),
     knitr,
     rmarkdown,
-    BiocStyle
+    BiocStyle,
+    BSgenome.Hsapiens.UCSC.hg19,
+    BSgenome.Hsapiens.UCSC.hg38
 biocViews:
     CopyNumberVariation,
     SingleCell,

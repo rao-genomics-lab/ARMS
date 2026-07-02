@@ -4,20 +4,40 @@
 \alias{plot_spatial_clusters}
 \title{Plot spatial distribution of clusters on tissue coordinates}
 \usage{
-plot_spatial_clusters(spatial_data, tiles, output_file)
+plot_spatial_clusters(
+  spatial_data,
+  tiles,
+  output_file,
+  use_polygons = TRUE,
+  flipped = TRUE
+)
 }
 \arguments{
-\item{spatial_data}{Data frame with x, y, cluster columns}
+\item{spatial_data}{Data frame with sample, tile, x, y, cluster columns}
 
-\item{tiles}{sf object with tile geometries for context}
+\item{tiles}{sf object with tile geometries}
 
 \item{output_file}{Output PDF path}
+
+\item{use_polygons}{Logical, if TRUE (default) fills actual tile polygons with cluster colors,
+if FALSE uses colored square points at coordinates}
+
+\item{flipped}{Logical, if TRUE (default) reverses the y-axis so the origin
+is in the top-left corner, matching typical image coordinates.
+Set to FALSE for standard mathematical orientation (origin bottom-left).}
 }
 \description{
 Plot spatial distribution of clusters on tissue coordinates
 }
 \examples{
 \dontrun{
+# Default: fill polygons with cluster colors, y-axis flipped (origin top-left)
 plot_spatial_clusters(spatial_data, tiles, "spatial.pdf")
+
+# Disable y-axis flip (origin bottom-left, standard mathematical orientation)
+plot_spatial_clusters(spatial_data, tiles, "spatial.pdf", flipped = FALSE)
+
+# Use colored square points instead of filled polygons
+plot_spatial_clusters(spatial_data, tiles, "spatial.pdf", use_polygons = FALSE)
 }
 }

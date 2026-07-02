@@ -127,6 +127,7 @@ normalize_identifier <- function(identifiers) {
 #' @param tile_names Character vector of tile names from GeoJSON
 #' @param verbose Logical, whether to print matching information
 #' @return List with matches (data.frame), unmatched_samples, unmatched_tiles, stats
+#' @importFrom stringr str_match str_split
 #' @export
 #' @examples
 #' \dontrun{
@@ -259,6 +260,7 @@ load_geojson_tiles <- function(geojson_file) {
 #' @param sample_names Sample names from profiles
 #' @param tiles sf object with tile data
 #' @return Data frame with sample, tile, x, y coordinates
+#' @importFrom stringr str_match str_split
 #' @export
 #' @examples
 #' \dontrun{

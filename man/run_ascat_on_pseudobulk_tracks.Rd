@@ -4,7 +4,13 @@
 \alias{run_ascat_on_pseudobulk_tracks}
 \title{Run full ASCAT.sc on pseudobulk tracks (mirrors run_sc_sequencing workflow)}
 \usage{
-run_ascat_on_pseudobulk_tracks(pseudobulk_tracks, ascat_rda_file, output_dir)
+run_ascat_on_pseudobulk_tracks(
+  pseudobulk_tracks,
+  ascat_rda_file,
+  output_dir,
+  purs = NULL,
+  ploidies = NULL
+)
 }
 \arguments{
 \item{pseudobulk_tracks}{List of pseudobulk track data}
@@ -12,6 +18,10 @@ run_ascat_on_pseudobulk_tracks(pseudobulk_tracks, ascat_rda_file, output_dir)
 \item{ascat_rda_file}{Path to original ASCAT result}
 
 \item{output_dir}{Output directory}
+
+\item{purs}{Purity grid for ASCAT fitting (default: NULL, uses values from ascat_rda_file)}
+
+\item{ploidies}{Ploidy grid for ASCAT fitting (default: NULL, uses values from ascat_rda_file)}
 }
 \value{
 ASCAT result object with profiles
@@ -21,6 +31,14 @@ Run full ASCAT.sc on pseudobulk tracks (mirrors run_sc_sequencing workflow)
 }
 \examples{
 \dontrun{
+# Use default purity/ploidy grids from original ASCAT run
 pb_res <- run_ascat_on_pseudobulk_tracks(pb_tracks, "ascat.Rda", "output")
+
+# Specify custom purity/ploidy grids
+pb_res <- run_ascat_on_pseudobulk_tracks(
+  pb_tracks, "ascat.Rda", "output",
+  purs = seq(0.1, 1, 0.01),
+  ploidies = seq(1.5, 5, 0.01)
+)
 }
 }

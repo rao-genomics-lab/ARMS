@@ -8,7 +8,9 @@ load_ascat_profiles(
   profile_dir,
   pattern = "*refitted.ASCAT.scprofile.txt",
   resolution = 1e+06,
-  logr_missing_value = 0
+  logr_missing_value = 0,
+  ascat_compat = FALSE,
+  imputation_method = c("row_mean", "scalar")
 )
 }
 \arguments{
@@ -18,7 +20,20 @@ load_ascat_profiles(
 
 \item{resolution}{Genomic resolution in bp}
 
-\item{logr_missing_value}{Value for missing logR data}
+\item{logr_missing_value}{Value for missing logR data (used when
+\code{imputation_method = "scalar"}).}
+
+\item{ascat_compat}{Logical. If TRUE, mimic ASCAT workflow behavior:
+recursive file discovery with refitted preference, hg38-length grid,
+sample filtering (<10\% coverage removed), and scalar imputation
+(CN=2, LogR=logr_missing_value).}
+
+\item{imputation_method}{How to fill NA values in the LogR matrix.
+\code{"row_mean"} (default) uses a two-pass approach: first replaces each
+NA with the row (sample) mean, then fills any remaining NAs with the
+overall matrix mean. \code{"scalar"} replaces all NAs with
+\code{logr_missing_value} (the previous default behaviour).
+See \code{\link{impute_missing}} for details.}
 }
 \value{
 List with copy_number_matrix, logr_matrix, grid, sample_names
@@ -29,5 +44,7 @@ Load ASCAT.sc profile files and create matrices
 \examples{
 \dontrun{
 profiles <- load_ascat_profiles("path/to/profiles", resolution = 1e6)
+# Use legacy scalar imputation:
+profiles <- load_ascat_profiles("path/to/profiles", imputation_method = "scalar")
 }
 }

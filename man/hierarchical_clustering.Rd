@@ -14,7 +14,8 @@ hierarchical_clustering(
   silhouette_threshold = 0.05,
   gap_threshold = 0.01,
   pvclust_threshold = 0.95,
-  max_recursion_depth = 4
+  max_recursion_depth = 4,
+  ascat_compat = FALSE
 )
 }
 \arguments{
@@ -37,6 +38,9 @@ hierarchical_clustering(
 \item{pvclust_threshold}{Minimum AU p-value threshold}
 
 \item{max_recursion_depth}{Maximum recursion depth}
+
+\item{ascat_compat}{Logical. If TRUE, default to ASCAT workflow settings
+when arguments are omitted (e.g., hierarchical_k = 9).}
 }
 \value{
 List with clusters, hclust_obj, and dist_matrix

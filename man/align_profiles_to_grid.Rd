@@ -4,7 +4,13 @@
 \alias{align_profiles_to_grid}
 \title{Align profiles to an existing genomic grid (using IRanges for speed)}
 \usage{
-align_profiles_to_grid(profile_dir, pattern, grid, logr_missing_value = 0)
+align_profiles_to_grid(
+  profile_dir,
+  pattern,
+  grid,
+  logr_missing_value = 0,
+  imputation_method = c("row_mean", "scalar")
+)
 }
 \arguments{
 \item{profile_dir}{Directory containing profile files}
@@ -13,7 +19,12 @@ align_profiles_to_grid(profile_dir, pattern, grid, logr_missing_value = 0)
 
 \item{grid}{Existing genomic grid to align to}
 
-\item{logr_missing_value}{Value for missing LogR data}
+\item{logr_missing_value}{Value for missing LogR data (used when
+\code{imputation_method = "scalar"}).}
+
+\item{imputation_method}{How to fill NA values in the LogR matrix.
+\code{"row_mean"} (default) or \code{"scalar"}.
+See \code{\link{impute_missing}} for details.}
 }
 \value{
 List with copy_number_matrix and logr_matrix

@@ -4,199 +4,77 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Package Overview
 
-ARMS (Adaptive Resolution Multiscale Spatial DNA sequencing) is an R/Bioconductor package for detecting copy number alterations in spatial genomics data. It wraps ASCAT.sc for single-cell copy number calling, performs hierarchical clustering to identify clonal populations, and generates publication-ready visualizations.
+ARMS (Adaptive Resolution Multiscale Spatial DNA sequencing) is an R package for detecting copy number alterations in spatial genomics data. It wraps ASCAT.sc for single-cell copy number calling, performs hierarchical clustering to identify clonal populations, and generates publication-ready visualizations.
 
 ## Development Commands
 
-### Building and Checking
 ```r
-# Build package
-devtools::build()
-
-# Check package (R CMD check)
-devtools::check()
-
-# Install package locally
-devtools::install()
-
-# Load package for development
+# Load package for development (use this during iterative development)
 devtools::load_all()
-```
 
-### Documentation
-```r
-# Generate documentation from roxygen2 comments
+# Generate documentation from roxygen2 comments (run after changing @param/@export etc.)
 devtools::document()
 
-# Build vignettes
-devtools::build_vignettes()
+# Check package (R CMD check equivalent)
+devtools::check()
+
+# Build and install
+devtools::build()
+devtools::install()
 ```
 
-### Testing
-```r
-# Run all tests
-devtools::test()
-
-# Run specific test file
-testthat::test_file("tests/testthat/test-clustering.R")
-```
+**Note:** No test suite exists yet. The `tests/` directory has not been created despite `testthat` being in Suggests. When tests are added, run with `devtools::test()` or `testthat::test_file("tests/testthat/test-*.R")`.
 
 ## Architecture
 
-### Core Workflow Pipeline
+### Five-Stage Pipeline
 
-The package implements a five-stage analysis pipeline:
+1. **ASCAT.sc Integration** (`R/ascat-core.R`) - Wraps ASCAT.sc's `run_sc_sequencing()` for copy number calling. `run_ascat_on_pseudobulk_tracks()` and `run_ascat_on_bulk_track()` accept optional custom `purs`/`ploidies` grids for refined fitting.
 
-1. **ASCAT.sc Integration** (`R/ascat-core.R`)
-   - Wraps ASCAT.sc's `run_sc_sequencing()` for initial single-cell copy number calling
-   - `run_ascat_on_pseudobulk_tracks()`: Reruns ASCAT.sc on aggregated pseudobulk profiles
-   - `run_ascat_on_bulk_track()`: Processes bulk/reference samples
+2. **Data Loading** (`R/data-loading.R`) - `load_ascat_profiles()` reads ASCAT.sc profile files (`*.ASCAT.scprofile.txt`) into matrices aligned to a common genomic grid (default 1Mb). Returns `copy_number_matrix`, `logr_matrix`, `grid`, `sample_names`. Supports `imputation_method` parameter (`"row_mean"` default, or `"scalar"` for legacy behavior).
 
-2. **Data Loading** (`R/data-loading.R`)
-   - `load_ascat_profiles()`: Primary entry point - reads ASCAT.sc profile files (*.ASCAT.scprofile.txt) into matrices
-   - Creates aligned genomic grids at specified resolution (default: 1Mb)
-   - Handles both refitted and non-refitted profiles
-   - Returns: `copy_number_matrix`, `logr_matrix`, `grid`, `sample_names`
+3. **Clustering** (`R/clustering.R`) - `hierarchical_clustering()` uses Ward's D2 with `dynamicTreeCut::cutreeDynamic()`. `refine_clusters_by_correlation()` merges similar clusters. `create_clusters_from_geojson_groups()` enables manual cluster assignment from GeoJSON spatial selections.
 
-3. **Clustering** (`R/clustering.R`)
-   - `hierarchical_clustering()`: Ward's D2 linkage with dynamic tree cutting
-   - `refine_clusters_by_correlation()`: Post-processing to merge similar clones
-   - Quality metrics: silhouette scores, gap statistics, pvclust AU p-values
-   - Uses `dynamicTreeCut::cutreeDynamic()` for automatic cluster detection
+4. **Pseudobulk** (`R/pseudobulk.R`) - `create_pseudobulk_from_bins()` (fast, preferred) and `merge_bams_by_cluster()` (BAM-level, slower). Aggregates cells within clusters for improved signal-to-noise.
 
-4. **Pseudobulk Analysis** (`R/pseudobulk.R`)
-   - Two approaches:
-     - `create_pseudobulk_from_bins()`: Fast aggregation from bin counts (preferred)
-     - `merge_bams_by_cluster()`: BAM-level merging (slower, for resequencing)
-   - Improves signal-to-noise ratio by aggregating cells within clusters
-   - Feeds back into ASCAT.sc for refined copy number calling
+5. **Visualization** (`R/visualization.R`, largest file ~974 lines) - `plot_logr_heatmap()` (ComplexHeatmap), `plot_umap()`, `plot_spatial_clusters()` (GeoJSON polygon fills by default), and various QC plots.
 
-5. **Visualization** (`R/visualization.R`)
-   - `plot_logr_heatmap()`: Primary visualization using ComplexHeatmap
-   - `plot_umap()`: Dimensionality reduction with uwot
-   - `plot_spatial_clusters()`: GeoJSON-based spatial mapping
-   - `plot_cluster_correlation()`: Inter-cluster similarity
-   - Quality plots: ploidy distribution, chromosomal instability, logR variance
+### Supporting Modules
 
-### Spatial Integration
-
-**Spatial Matching** (`R/spatial-matching.R`)
-- `match_spatial_tiles_to_samples()`: Links sample IDs to spatial coordinates
-- Complex filename parsing for plate/well identifiers:
-  - Handles multiple barcode schemes (16-barcode and 24-barcode layouts)
-  - Parses patterns like "plate2-1A-2H_lcmad_007" → "P2_A1"
-- `load_geojson_tiles()`: Reads spatial geometry data
-- Enables spatial autocorrelation analysis (Moran's I, LISA)
+- **Counts Import** (`R/counts-to-ascat.R`) - `create_res_from_counts()` enables running the full ASCAT.sc pipeline from pre-binned read count files (no BAM files needed). Computes GC content from BSgenome, builds track structures, and runs segmentation + purity/ploidy fitting.
+- **Spatial Matching** (`R/spatial-matching.R`) - Links sample IDs to spatial coordinates via complex filename parsing. `normalize_identifier()` (internal) handles multiple barcode schemes (16-barcode and 24-barcode layouts). Parses patterns like `plate2-1A-2H_lcmad_007` to `P2_A1`.
+- **Utilities** (`R/utils.R`) - `impute_missing()` (row-mean or scalar NA imputation), `compute_umap()`, `calculate_morans_i()` (spatial autocorrelation), `plot_lisa()`.
+- **Analysis** (`R/analysis.R`) - Contains `compare_sc_vs_pseudobulk()` for comparing single-cell and pseudobulk profiles.
 
 ### Key Data Structures
 
-**ASCAT Result Object** (`res`)
-- Loaded from `.Rda` files produced by ASCAT.sc
-- Contains: `allTracks`, `chr`, `sex`, `binsize`, `lGCT`, `lSe`, `segmentation_alpha`
-- Each track includes: `lCTS.tumour` (bin counts), `profile` (copy number)
+- **ASCAT Result Object** (`res`): Loaded from `.Rda` files. Contains `allTracks`, `chr`, `sex`, `binsize`, `lGCT`, `lSe`, `segmentation_alpha`. Each track has `lCTS.tumour` (bin counts) and `profile` (copy number).
+- **Matrices**: `logr_matrix` and `copy_number_matrix` are samples x genomic bins. `grid` provides genomic coordinates (chr, start, end, pos) for columns.
+- **Clustering Output**: `clusters` (integer vector), `dendrogram` (hclust object), `quality_metrics` (silhouette scores, gap statistics).
 
-**Matrices**
-- `logr_matrix`: Samples × genomic bins, log2 ratios
-- `copy_number_matrix`: Samples × genomic bins, integer copy numbers
-- `grid`: Genomic coordinates (chr, start, end, pos) for matrix columns
-
-**Clustering Output**
-- `clusters`: Vector of cluster assignments (integers)
-- `dendrogram`: hclust object for visualization
-- `quality_metrics`: Silhouette scores, gap statistics
-
-## Important Implementation Details
+## Important Details
 
 ### Genomic Resolution
-- Default resolution: 1Mb (1,000,000 bp)
-- ASCAT.sc binsize typically: 30kb (30,000 bp)
-- Profiles are aligned to a common grid using `create_genomic_grid()` and `align_profiles_to_grid()`
+- Default analysis resolution: 1Mb. ASCAT.sc binsize typically 30kb.
+- Profiles aligned via `create_genomic_grid()` and `align_profiles_to_grid()`.
+- Chromosomes: "chr1"-"chr22" + "chrX".
 
-### Chromosome Handling
-- Works with autosomes (1-22) and sex chromosome X
-- Chromosome names: "chr1", "chr2", ..., "chr22", "chrX"
-- Sex-specific analysis supported through ASCAT.sc's `sex` parameter
-
-### Sample Naming Conventions
-- BAM files → ASCAT profiles: `sample.bam` → `sample.bam.ASCAT.scprofile.txt`
-- Refitted profiles: `sample.bam_refitted.ASCAT.scprofile.txt`
+### Sample Naming
+- BAM → profile: `sample.bam` → `sample.bam.ASCAT.scprofile.txt`
+- Refitted: `sample.bam_refitted.ASCAT.scprofile.txt`
 - Pseudobulk: `cluster_1_pseudobulk.ASCAT.scprofile.txt`
-- The package handles multiple naming variations through `normalize_identifier()` (`R/utils.R`)
+- Multiple naming variations handled by `normalize_identifier()` in `R/spatial-matching.R`.
 
-### Performance Considerations
-- Pseudobulk from bins is 10-100x faster than BAM merging
-- Use `min_cluster_size` parameter to filter small clusters
-- Clustering quality metrics use reduced bootstrap samples for speed (default: B=10)
-- Parallel processing via `parallel::mclapply()` in ASCAT.sc wrapper
-
-## Typical Workflow Usage
-
-```r
-# 1. Run ASCAT.sc (external, or via wrapper)
-result <- ASCAT.sc::run_sc_sequencing(tumour_bams, ...)
-
-# 2. Load profiles into matrices
-profiles <- load_ascat_profiles("output_dir/", resolution = 1e6)
-
-# 3. Cluster samples
-clustering <- hierarchical_clustering(profiles$logr_matrix, min_cluster_size = 3)
-
-# 4. Visualize
-plot_logr_heatmap(profiles$logr_matrix, clustering$clusters, profiles$grid, "heatmap.pdf")
-plot_umap(profiles$logr_matrix, clustering$clusters, "umap.pdf")
-
-# 5. Optional: Pseudobulk refinement
-pb_tracks <- create_pseudobulk_from_bins("result.Rda", clustering$clusters,
-                                         profiles$sample_names, "pb_output/")
-pb_result <- run_ascat_on_pseudobulk_tracks(pb_tracks, "result.Rda", "pb_output/")
-
-# 6. Optional: Spatial analysis (if GeoJSON available)
-matches <- match_spatial_tiles_to_samples(profiles$sample_names, "tiles.geojson")
-plot_spatial_clusters(matches, clustering$clusters, "spatial_map.pdf")
-```
-
-## Dependencies
-
-### Critical External Packages
-- **ASCAT.sc**: VanLoo-lab implementation (GitHub-only, specified in Remotes)
-- **ComplexHeatmap**: Bioconductor, for advanced heatmap generation
-- **uwot**: UMAP dimensionality reduction
-- **dynamicTreeCut**: Automatic dendrogram cutting
-- **sf/geojsonio**: Spatial data handling
-
-### Package Structure
-- `R/`: All source code (8 files organized by function)
-- `man/`: Auto-generated Roxygen2 documentation
-- `vignettes/`: Example workflow Rmd showing complete analysis
-- `inst/extdata/`: Example data (ASCAT profiles, GeoJSON tiles)
+### Unused Shiny Dependencies
+The DESCRIPTION imports many Shiny packages (`shiny`, `shinydashboard`, `shinyFiles`, etc.) but no Shiny app currently exists in the codebase. These may be planned for a future interactive interface.
 
 ## Code Conventions
 
-### Function Organization
-- Exported functions: User-facing API
-- Internal functions: `@keywords internal`, no export
-- Helper functions: Prefixed with verb (e.g., `create_`, `calculate_`, `plot_`)
-
-### Roxygen Documentation
-- All exported functions have `@param`, `@return`, `@export`, `@examples`
-- `@importFrom` for all external package functions (no library() calls in functions)
+- All exported functions have roxygen2 docs with `@param`, `@return`, `@export`, `@examples`
+- `@importFrom` for all external package functions (no `library()` calls inside functions)
 - Use `\dontrun{}` for examples requiring external data
-
-### Data Handling
-- Use `readr::read_tsv()` for ASCAT profile loading (handles large files efficiently)
+- Helper functions prefixed with verbs: `create_`, `calculate_`, `plot_`
+- Internal functions use `@keywords internal`
 - dplyr pipes (`%>%`) for data transformations
-- Preserve sample order through clustering and visualization
-
-### Error Handling
-- Use `stop()` with informative messages for critical errors
-- `warning()` for non-fatal issues (e.g., grid mismatch)
-- `message()` for progress updates in long-running functions
-
-## Testing Strategy
-
-Tests should cover:
-- Profile loading with different file patterns
-- Clustering with varying parameters
-- Matrix dimension consistency through pipeline
-- Sample name matching and normalization
-- Edge cases: single cluster, small sample sizes
+- `readr::read_tsv()` for file I/O
+- `stop()` for critical errors, `warning()` for non-fatal issues, `message()` for progress

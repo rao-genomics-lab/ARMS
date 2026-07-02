@@ -4,7 +4,13 @@
 \alias{run_ascat_on_bulk_track}
 \title{Run full ASCAT.sc workflow on aggregated bulk track}
 \usage{
-run_ascat_on_bulk_track(bulk_track, ascat_rda_file, output_dir)
+run_ascat_on_bulk_track(
+  bulk_track,
+  ascat_rda_file,
+  output_dir,
+  purs = NULL,
+  ploidies = NULL
+)
 }
 \arguments{
 \item{bulk_track}{Bulk track data (list with lCTS.tumour)}
@@ -12,6 +18,10 @@ run_ascat_on_bulk_track(bulk_track, ascat_rda_file, output_dir)
 \item{ascat_rda_file}{Path to original ASCAT result for parameters}
 
 \item{output_dir}{Output directory for results}
+
+\item{purs}{Purity grid for ASCAT fitting (default: NULL, uses values from ascat_rda_file)}
+
+\item{ploidies}{Ploidy grid for ASCAT fitting (default: NULL, uses values from ascat_rda_file)}
 }
 \value{
 ASCAT result object with bulk profile
@@ -21,6 +31,14 @@ Run full ASCAT.sc workflow on aggregated bulk track
 }
 \examples{
 \dontrun{
+# Use default purity/ploidy grids
 bulk_res <- run_ascat_on_bulk_track(bulk_track, "ascat.Rda", "output/")
+
+# Specify custom grids
+bulk_res <- run_ascat_on_bulk_track(
+  bulk_track, "ascat.Rda", "output/",
+  purs = seq(0.1, 1, 0.01),
+  ploidies = seq(1.5, 5, 0.01)
+)
 }
 }

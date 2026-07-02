@@ -12,7 +12,9 @@ plot_logr_heatmap(
   copy_number_matrix = NULL,
   logr_range = 2,
   width = 20,
-  height = 8
+  height = 8,
+  show_sample_names = FALSE,
+  row_names_fontsize = 6
 )
 }
 \arguments{
@@ -31,6 +33,10 @@ plot_logr_heatmap(
 \item{width}{Width in inches}
 
 \item{height}{Height in inches}
+
+\item{show_sample_names}{Logical, if TRUE display sample/tile ID row labels (default FALSE)}
+
+\item{row_names_fontsize}{Font size for row labels when show_sample_names = TRUE (default 6)}
 }
 \description{
 Plot LogR heatmap with hierarchical clustering

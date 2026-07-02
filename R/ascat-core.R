@@ -5,6 +5,8 @@
 #' @param pseudobulk_tracks List of pseudobulk track data
 #' @param ascat_rda_file Path to original ASCAT result
 #' @param output_dir Output directory
+#' @param purs Purity grid for ASCAT fitting (default: NULL, uses values from ascat_rda_file)
+#' @param ploidies Ploidy grid for ASCAT fitting (default: NULL, uses values from ascat_rda_file)
 #' @return ASCAT result object with profiles
 #' @importFrom ASCAT.sc getTrackForAll searchGrid getProfile fitProfile predictRefit_all printResults_all
 #' @importFrom parallel mclapply
@@ -12,9 +14,18 @@
 #' @export
 #' @examples
 #' \dontrun{
+#' # Use default purity/ploidy grids from original ASCAT run
 #' pb_res <- run_ascat_on_pseudobulk_tracks(pb_tracks, "ascat.Rda", "output")
+#'
+#' # Specify custom purity/ploidy grids
+#' pb_res <- run_ascat_on_pseudobulk_tracks(
+#'   pb_tracks, "ascat.Rda", "output",
+#'   purs = seq(0.1, 1, 0.01),
+#'   ploidies = seq(1.5, 5, 0.01)
+#' )
 #' }
-run_ascat_on_pseudobulk_tracks <- function(pseudobulk_tracks, ascat_rda_file, output_dir) {
+run_ascat_on_pseudobulk_tracks <- function(pseudobulk_tracks, ascat_rda_file, output_dir,
+                                            purs = NULL, ploidies = NULL) {
 
   message("Running full ASCAT.sc on pseudobulk tracks...")
 
@@ -121,9 +132,26 @@ run_ascat_on_pseudobulk_tracks <- function(pseudobulk_tracks, ascat_rda_file, ou
 
   # Fit purity/ploidy
   message("Fitting purity/ploidy...")
-  # res$purs and res$ploidies are lists (one per sample), extract the grid from first element
-  purs <- if (is.list(res$purs)) res$purs[[1]] else res$purs
-  ploidies <- if (is.list(res$ploidies)) res$ploidies[[1]] else res$ploidies
+  # Use provided purs/ploidies if specified, otherwise extract from original ASCAT result
+  if (is.null(purs)) {
+    # res$purs and res$ploidies are lists (one per sample), extract the grid from first element
+    purs <- if (is.list(res$purs)) res$purs[[1]] else res$purs
+    message(sprintf("Using purity grid from original ASCAT run: %d values (%.2f to %.2f)",
+                    length(purs), min(purs), max(purs)))
+  } else {
+    message(sprintf("Using custom purity grid: %d values (%.2f to %.2f)",
+                    length(purs), min(purs), max(purs)))
+  }
+
+  if (is.null(ploidies)) {
+    ploidies <- if (is.list(res$ploidies)) res$ploidies[[1]] else res$ploidies
+    message(sprintf("Using ploidy grid from original ASCAT run: %d values (%.2f to %.2f)",
+                    length(ploidies), min(ploidies), max(ploidies)))
+  } else {
+    message(sprintf("Using custom ploidy grid: %d values (%.2f to %.2f)",
+                    length(ploidies), min(ploidies), max(ploidies)))
+  }
+
   maxtumourpsi <- res$maxtumourpsi
 
   allSols <- mclapply(1:length(allTracks.processed), function(x) {
@@ -201,6 +229,8 @@ run_ascat_on_pseudobulk_tracks <- function(pseudobulk_tracks, ascat_rda_file, ou
 #' @param bulk_track Bulk track data (list with lCTS.tumour)
 #' @param ascat_rda_file Path to original ASCAT result for parameters
 #' @param output_dir Output directory for results
+#' @param purs Purity grid for ASCAT fitting (default: NULL, uses values from ascat_rda_file)
+#' @param ploidies Ploidy grid for ASCAT fitting (default: NULL, uses values from ascat_rda_file)
 #' @return ASCAT result object with bulk profile
 #' @importFrom ASCAT.sc getTrackForAll searchGrid getProfile fitProfile predictRefit_all printResults_all
 #' @importFrom parallel mclapply
@@ -208,9 +238,18 @@ run_ascat_on_pseudobulk_tracks <- function(pseudobulk_tracks, ascat_rda_file, ou
 #' @export
 #' @examples
 #' \dontrun{
+#' # Use default purity/ploidy grids
 #' bulk_res <- run_ascat_on_bulk_track(bulk_track, "ascat.Rda", "output/")
+#'
+#' # Specify custom grids
+#' bulk_res <- run_ascat_on_bulk_track(
+#'   bulk_track, "ascat.Rda", "output/",
+#'   purs = seq(0.1, 1, 0.01),
+#'   ploidies = seq(1.5, 5, 0.01)
+#' )
 #' }
-run_ascat_on_bulk_track <- function(bulk_track, ascat_rda_file, output_dir) {
+run_ascat_on_bulk_track <- function(bulk_track, ascat_rda_file, output_dir,
+                                     purs = NULL, ploidies = NULL) {
 
   message("Running full ASCAT.sc on bulk track...")
 
@@ -304,8 +343,25 @@ run_ascat_on_bulk_track <- function(bulk_track, ascat_rda_file, output_dir) {
 
   # Fit purity/ploidy
   message("Fitting purity/ploidy...")
-  purs <- if (is.list(res$purs)) res$purs[[1]] else res$purs
-  ploidies <- if (is.list(res$ploidies)) res$ploidies[[1]] else res$ploidies
+  # Use provided purs/ploidies if specified, otherwise extract from original ASCAT result
+  if (is.null(purs)) {
+    purs <- if (is.list(res$purs)) res$purs[[1]] else res$purs
+    message(sprintf("Using purity grid from original ASCAT run: %d values (%.2f to %.2f)",
+                    length(purs), min(purs), max(purs)))
+  } else {
+    message(sprintf("Using custom purity grid: %d values (%.2f to %.2f)",
+                    length(purs), min(purs), max(purs)))
+  }
+
+  if (is.null(ploidies)) {
+    ploidies <- if (is.list(res$ploidies)) res$ploidies[[1]] else res$ploidies
+    message(sprintf("Using ploidy grid from original ASCAT run: %d values (%.2f to %.2f)",
+                    length(ploidies), min(ploidies), max(ploidies)))
+  } else {
+    message(sprintf("Using custom ploidy grid: %d values (%.2f to %.2f)",
+                    length(ploidies), min(ploidies), max(ploidies)))
+  }
+
   maxtumourpsi <- res$maxtumourpsi
 
   allSols <- list()
