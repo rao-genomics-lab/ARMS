@@ -76,8 +76,8 @@ biocViews:
     Visualization,
     Workflow
 VignetteBuilder: knitr
-URL: https://github.com/yourusername/ARMS
-BugReports: https://github.com/yourusername/ARMS/issues
+URL: https://github.com/rao-genomics-lab/ARMS
+BugReports: https://github.com/rao-genomics-lab/ARMS/issues
 Roxygen: list(markdown = TRUE)
 RoxygenNote: 7.3.2
 Config/testthat/edition: 3
