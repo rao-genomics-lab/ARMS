@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **Sensible clustering defaults matching the typical workflow** (2026-07-05)
+  - Function defaults now reproduce the canonical analysis (`test_workflow_2.Rmd`) without needing to override the same arguments on every call. `weighted_hierarchical_clustering()` is now the recommended default entry point in the README and vignette.
+  - `weighted_hierarchical_clustering()` default changes: `discretize` `FALSE` → `TRUE`, `loss_threshold` `-0.2` → `-0.1`, `use_size_weighting` `TRUE` → `FALSE`, `min_cluster_size` `10` → `3`, `silhouette_threshold` `0.05` → `0.001`, `pvclust_threshold` `0.95` → `0.3`.
+  - `hierarchical_clustering()` default changes: `min_cluster_size` `10` → `3`, `silhouette_threshold` `0.05` → `0.001`, `pvclust_threshold` `0.95` → `0.3`.
+  - `split_clusters_manually()` weighted-path defaults aligned: `discretize` `FALSE` → `TRUE`, `loss_threshold` `-0.2` → `-0.1`, `use_size_weighting` `TRUE` → `FALSE`.
+  - **Behavior change**: `weighted_hierarchical_clustering()` now discretizes logR by default (handles tumor-purity differences), and size weighting is off by default. Because `use_size_weighting` now defaults to `FALSE`, a bare `weighted_hierarchical_clustering(logr_matrix)` call no longer requires `grid` and no longer errors.
+  - **Experimental features de-emphasized**: correlation-based `refine_clusters_by_correlation()` and the size-weighting machinery are now labeled experimental in their docs and removed from the default README/vignette path (both remain exported and callable).
+  - **Verified**: a bare `weighted_hierarchical_clustering(logr_matrix)` call produces cluster assignments identical to the previous explicit-argument call, and reproduces the reference clustering partition on the canonical dataset (per-sample co-assignment agreement 1.0).
+  - **Known limitation (pre-existing)**: the recursive split step evaluates a gap statistic and pvclust bootstraps without a fixed seed, so the pipeline is not bit-for-bit reproducible unless the caller sets `set.seed()` (the split decisions are silhouette-driven in practice, so the final partition is stable). These bootstraps run whenever a cluster exceeds `max_module_size` and can be slow at fine bin resolution.
+  - **Files modified**: `R/clustering.R`, `R/analysis.R`, `README.md`, `vignettes/example_workflow.Rmd`, `CLAUDE.md`
+
 ### Added
 
 - **Optional sample-name row labels for LogR heatmap** (2026-07-02)

@@ -13,10 +13,10 @@ split_clusters_manually(
   k = NULL,
   use_dynamic = TRUE,
   min_cluster_size = 3,
-  discretize = FALSE,
+  discretize = TRUE,
   gain_threshold = 0.2,
-  loss_threshold = -0.2,
-  use_size_weighting = TRUE,
+  loss_threshold = -0.1,
+  use_size_weighting = FALSE,
   min_bins_full_weight = 5,
   weight_function = "linear",
   renumber = TRUE
@@ -47,16 +47,19 @@ Default: \code{TRUE}.}
 since splits often involve smaller groups).}
 
 \item{discretize}{Logical. If \code{TRUE} and \code{method = "weighted"}, discretize
-logR values before clustering. Default: \code{FALSE}.}
+logR values before clustering. Default: \code{TRUE} (matches
+\code{weighted_hierarchical_clustering()}).}
 
 \item{gain_threshold}{LogR value above which is classified as gain. Default: 0.2.}
 
-\item{loss_threshold}{LogR value below which is classified as loss. Default: -0.2.}
+\item{loss_threshold}{LogR value below which is classified as loss. Default: -0.1.}
 
-\item{use_size_weighting}{Logical. If \code{TRUE} and \code{method = "weighted"},
-weight bins by contiguous region size. Default: \code{TRUE}.}
+\item{use_size_weighting}{Logical. \emph{Experimental.} If \code{TRUE} and
+\code{method = "weighted"}, weight bins by contiguous region size (requires
+\code{grid}). Default: \code{FALSE}.}
 
-\item{min_bins_full_weight}{Minimum contiguous bins for full weight. Default: 5.}
+\item{min_bins_full_weight}{\emph{Experimental (size weighting).} Minimum contiguous
+bins for full weight. Default: 5.}
 
 \item{weight_function}{Weight function: \code{"linear"}, \code{"sigmoid"}, or
 \code{"step"}. Default: \code{"linear"}.}

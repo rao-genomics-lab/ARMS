@@ -9,11 +9,11 @@ hierarchical_clustering(
   method = "ward.D2",
   use_dynamic = TRUE,
   k = 20,
-  min_cluster_size = 10,
+  min_cluster_size = 3,
   max_module_size = 100,
-  silhouette_threshold = 0.05,
+  silhouette_threshold = 0.001,
   gap_threshold = 0.01,
-  pvclust_threshold = 0.95,
+  pvclust_threshold = 0.3,
   max_recursion_depth = 4,
   ascat_compat = FALSE
 )
@@ -27,17 +27,17 @@ hierarchical_clustering(
 
 \item{k}{Number of clusters for fixed cut (if use_dynamic = FALSE)}
 
-\item{min_cluster_size}{Minimum cluster size}
+\item{min_cluster_size}{Minimum cluster size (default: 3)}
 
-\item{max_module_size}{Maximum module size for recursive splitting}
+\item{max_module_size}{Maximum module size for recursive splitting (default: 100)}
 
-\item{silhouette_threshold}{Minimum silhouette improvement threshold}
+\item{silhouette_threshold}{Minimum silhouette improvement threshold (default: 0.001)}
 
-\item{gap_threshold}{Minimum gap statistic threshold}
+\item{gap_threshold}{Minimum gap statistic threshold (default: 0.01)}
 
-\item{pvclust_threshold}{Minimum AU p-value threshold}
+\item{pvclust_threshold}{Minimum AU p-value threshold (default: 0.3)}
 
-\item{max_recursion_depth}{Maximum recursion depth}
+\item{max_recursion_depth}{Maximum recursion depth (default: 4)}
 
 \item{ascat_compat}{Logical. If TRUE, default to ASCAT workflow settings
 when arguments are omitted (e.g., hierarchical_k = 9).}
@@ -46,7 +46,9 @@ when arguments are omitted (e.g., hierarchical_k = 9).}
 List with clusters, hclust_obj, and dist_matrix
 }
 \description{
-Perform hierarchical clustering on LogR data with dynamic tree cut
+Clusters samples on continuous logR values. For the recommended default workflow
+(which discretizes logR to handle purity differences) use
+\code{\link{weighted_hierarchical_clustering}} instead.
 }
 \examples{
 \dontrun{

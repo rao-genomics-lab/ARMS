@@ -173,29 +173,34 @@ plot_chromosomal_instability(
 )
 ```
 
-## Step 4: Hierarchical Clustering
+## Step 4: Clustering
 
-Identify clonal populations using hierarchical clustering with dynamic tree cutting:
+Identify clonal populations using the recommended default clustering. By default,
+`weighted_hierarchical_clustering()` discretizes logR values to gain/neutral/loss
+categories before clustering, so samples with the same copy-number profile but
+different tumor purity group together. No extra arguments are needed:
 
 ```{r clustering}
-# Perform hierarchical clustering
-clustering <- hierarchical_clustering(
-  logr_matrix = logr_matrix,
-  method = "ward.D2",
-  min_cluster_size = 3
+# Perform clustering (discretized by default)
+clustering <- weighted_hierarchical_clustering(
+  logr_matrix = logr_matrix
 )
 
 # View cluster assignments
 table(clustering$clusters)
 
-# Clustering automatically determines optimal number of clusters
+# Clustering automatically determines the number of clusters
 print(paste("Found", max(clustering$clusters), "clusters"))
 ```
 
 **Key parameters:**
+- `discretize`: Discretize logR to gain/neutral/loss before clustering (default: TRUE)
 - `method`: Linkage method ("ward.D2" recommended for compact clusters)
-- `min_cluster_size`: Minimum cells required per cluster
+- `min_cluster_size`: Minimum cells required per cluster (default: 3)
 - `use_dynamic`: Use dynamic tree cutting with recursive splitting (default: TRUE)
+
+To cluster on continuous logR instead of discretized categories, use
+`hierarchical_clustering(logr_matrix)` or pass `discretize = FALSE`.
 
 ## Step 5: Visualization - Heatmaps and UMAP
 
@@ -325,31 +330,55 @@ plot_sc_pb_comparison_heatmap(
 
 ## Step 8: Clone Refinement (Optional)
 
-Merge highly correlated clusters based on correlation threshold:
+The recommended way to refine clusters is manually, by splitting clusters that contain
+distinct subpopulations and merging clusters that represent the same clone. Inspect the
+heatmap from Step 5, then adjust:
 
 ```{r refine, eval=FALSE}
-# Refine by merging similar clusters
-refined_clusters <- refine_clusters_by_correlation(
+# Split a cluster that contains distinct subpopulations
+clustering_split <- split_clusters_manually(
+  clustering_obj = clustering,
+  clusters_to_split = 4,
   logr_matrix = logr_matrix,
-  clusters = clustering$clusters,
-  correlation_threshold = 0.9
+  method = "weighted",
+  grid = genomic_grid,
+  k = 3
 )
 
-table(refined_clusters)
-
-# Visualize cluster correlation
-plot_cluster_correlation(
-  logr_matrix = logr_matrix,
-  clusters = clustering$clusters,
-  output_file = "cluster_correlation.pdf"
+# Merge groups of clusters that represent the same clone
+clustering_merged <- merge_clusters_manually(
+  clustering_split,
+  clusters_to_merge = list(c(2, 5), c(3, 6))
 )
+
+table(clustering_merged$clusters)
 
 # Re-plot heatmap with refined clusters
 plot_logr_heatmap(
   logr_matrix = logr_matrix,
   grid = genomic_grid,
-  clusters = refined_clusters,
+  clusters = clustering_merged$clusters,
   output_file = "logr_heatmap_refined.pdf"
+)
+```
+
+### Experimental: automatic correlation-based merging
+
+As an experimental alternative, `refine_clusters_by_correlation()` automatically merges
+clusters whose centroid profiles correlate above a threshold. This is not part of the
+default workflow:
+
+```{r refine_cor, eval=FALSE}
+refined_clusters <- refine_clusters_by_correlation(
+  logr_matrix = logr_matrix,
+  clusters = clustering$clusters,
+  cor_threshold = 0.9
+)
+
+plot_cluster_correlation(
+  logr_matrix = logr_matrix,
+  clusters = clustering$clusters,
+  output_file = "cluster_correlation.pdf"
 )
 ```
 
@@ -399,11 +428,9 @@ plot_ploidy_distribution(profiles$copy_number_matrix, "ploidy.pdf")
 plot_logr_variance(profiles$logr_matrix, "variance.pdf")
 plot_chromosomal_instability(profiles$copy_number_matrix, profiles$grid, "instability.pdf")
 
-# Hierarchical clustering
-clustering <- hierarchical_clustering(
-  logr_matrix = profiles$logr_matrix,
-  method = "ward.D2",
-  min_cluster_size = 3
+# Clustering (discretized by default)
+clustering <- weighted_hierarchical_clustering(
+  logr_matrix = profiles$logr_matrix
 )
 
 # Visualize
@@ -441,15 +468,13 @@ plot_sc_pb_comparison_heatmap(
   "sc_pb_comparison.pdf"
 )
 
-# Clone refinement
-refined_clusters <- refine_clusters_by_correlation(
-  logr_matrix = profiles$logr_matrix,
-  clusters = clustering$clusters,
-  correlation_threshold = 0.9
+# Clone refinement (manual, recommended)
+clustering_merged <- merge_clusters_manually(
+  clustering,
+  clusters_to_merge = list(c(2, 5), c(3, 6))
 )
 
-plot_logr_heatmap(profiles$logr_matrix, profiles$grid, refined_clusters, "heatmap_refined.pdf")
-plot_cluster_correlation(profiles$logr_matrix, clustering$clusters, "cluster_correlation.pdf")
+plot_logr_heatmap(profiles$logr_matrix, profiles$grid, clustering_merged$clusters, "heatmap_refined.pdf")
 
 # Bulk profile simulation
 bulk_track <- create_bulk_from_bins(
@@ -474,13 +499,14 @@ bulk_ascat <- run_ascat_on_bulk_track(
 - **1Mb**: For very sparse data or whole-chromosome analysis
 
 **Clustering:**
+- `weighted_hierarchical_clustering()` is the recommended default (discretizes logR so purity differences don't split identical clones)
 - Start with `min_cluster_size = 3-5` to avoid spurious clusters
 - Use `method = "ward.D2"` for tight, spherical clusters
 - Set `use_dynamic = TRUE` for automatic cluster detection (default)
 
 **Cluster refinement:**
-- Use `correlation_threshold = 0.9-0.95` to merge similar clones
-- Lower threshold = more aggressive merging
+- Refine manually with `split_clusters_manually()` and `merge_clusters_manually()` after inspecting the heatmap
+- Experimental alternative: `refine_clusters_by_correlation(cor_threshold = 0.9-0.95)` to auto-merge similar clones (lower threshold = more aggressive merging)
 
 ## Quality Control
 
@@ -498,7 +524,7 @@ bulk_ascat <- run_ascat_on_bulk_track(
 
 **Too many small clusters:**
 - Increase `min_cluster_size`
-- Use cluster refinement with `refine_clusters_by_correlation()`
+- Merge similar clusters with `merge_clusters_manually()` (or, experimentally, `refine_clusters_by_correlation()`)
 
 **Poor spatial coherence:**
 - May indicate true spatial heterogeneity

@@ -1,5 +1,10 @@
 
-#' Merge similar clusters based on correlation
+#' Merge similar clusters based on correlation (experimental)
+#'
+#' \strong{Experimental.} An automatic, correlation-based alternative to the
+#' recommended manual refinement workflow (\code{\link{split_clusters_manually}} +
+#' \code{\link{merge_clusters_manually}}). Merges clusters whose centroid logR
+#' profiles correlate above \code{cor_threshold}. Not part of the default pipeline.
 #'
 #' @param logr_matrix LogR matrix
 #' @param clusters Initial cluster assignments

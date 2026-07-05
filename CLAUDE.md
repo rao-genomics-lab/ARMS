@@ -33,7 +33,7 @@ devtools::install()
 
 2. **Data Loading** (`R/data-loading.R`) - `load_ascat_profiles()` reads ASCAT.sc profile files (`*.ASCAT.scprofile.txt`) into matrices aligned to a common genomic grid (default 1Mb). Returns `copy_number_matrix`, `logr_matrix`, `grid`, `sample_names`. Supports `imputation_method` parameter (`"row_mean"` default, or `"scalar"` for legacy behavior).
 
-3. **Clustering** (`R/clustering.R`) - `hierarchical_clustering()` uses Ward's D2 with `dynamicTreeCut::cutreeDynamic()`. `refine_clusters_by_correlation()` merges similar clusters. `create_clusters_from_geojson_groups()` enables manual cluster assignment from GeoJSON spatial selections.
+3. **Clustering** (`R/clustering.R`) - `weighted_hierarchical_clustering()` is the recommended default entry point: it discretizes logR to gain/neutral/loss before clustering (so purity differences don't split identical clones) and uses Ward's D2 with `dynamicTreeCut::cutreeDynamic()`. `hierarchical_clustering()` clusters on continuous logR. Clusters are refined manually with `split_clusters_manually()` / `merge_clusters_manually()`. Experimental (not the default path): correlation-based `refine_clusters_by_correlation()` (in `R/analysis.R`) and the size-weighting machinery (`use_size_weighting`, off by default). `create_clusters_from_geojson_groups()` enables manual cluster assignment from GeoJSON spatial selections.
 
 4. **Pseudobulk** (`R/pseudobulk.R`) - `create_pseudobulk_from_bins()` (fast, preferred) and `merge_bams_by_cluster()` (BAM-level, slower). Aggregates cells within clusters for improved signal-to-noise.
 

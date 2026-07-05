@@ -78,12 +78,15 @@ profiles <- load_ascat_profiles(
 **3. Cluster samples** into clonal populations:
 
 ```r
-clustering <- hierarchical_clustering(
-  logr_matrix = profiles$logr_matrix,
-  method = "ward.D2",
-  min_cluster_size = 3
+clustering <- weighted_hierarchical_clustering(
+  logr_matrix = profiles$logr_matrix
 )
 ```
+
+`weighted_hierarchical_clustering()` is the recommended default: it discretizes logR
+values (gain/neutral/loss) before clustering so samples with the same copy-number
+profile but different tumor purity group together. Use `hierarchical_clustering()` if
+you want to cluster on continuous logR instead.
 
 **4. Visualize** the results:
 
@@ -99,7 +102,7 @@ umap_coords <- compute_umap(profiles$logr_matrix)
 plot_umap(umap_coords, clustering$clusters, "umap.pdf")
 ```
 
-**5. Optional next steps** — spatial mapping, pseudobulk aggregation, and clone refinement are all supported; see the vignette for details.
+**5. Optional next steps** — spatial mapping and pseudobulk aggregation are supported, and clusters can be refined manually with `split_clusters_manually()` and `merge_clusters_manually()`; see the vignette for details.
 
 ## Documentation
 

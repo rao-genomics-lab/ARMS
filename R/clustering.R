@@ -595,12 +595,15 @@ merge_clusters_manually <- function(clustering_obj, clusters_to_merge, renumber 
 #' @param min_cluster_size Minimum subcluster size. Default: 3 (smaller than usual
 #'   since splits often involve smaller groups).
 #' @param discretize Logical. If \code{TRUE} and \code{method = "weighted"}, discretize
-#'   logR values before clustering. Default: \code{FALSE}.
+#'   logR values before clustering. Default: \code{TRUE} (matches
+#'   \code{weighted_hierarchical_clustering()}).
 #' @param gain_threshold LogR value above which is classified as gain. Default: 0.2.
-#' @param loss_threshold LogR value below which is classified as loss. Default: -0.2.
-#' @param use_size_weighting Logical. If \code{TRUE} and \code{method = "weighted"},
-#'   weight bins by contiguous region size. Default: \code{TRUE}.
-#' @param min_bins_full_weight Minimum contiguous bins for full weight. Default: 5.
+#' @param loss_threshold LogR value below which is classified as loss. Default: -0.1.
+#' @param use_size_weighting Logical. \emph{Experimental.} If \code{TRUE} and
+#'   \code{method = "weighted"}, weight bins by contiguous region size (requires
+#'   \code{grid}). Default: \code{FALSE}.
+#' @param min_bins_full_weight \emph{Experimental (size weighting).} Minimum contiguous
+#'   bins for full weight. Default: 5.
 #' @param weight_function Weight function: \code{"linear"}, \code{"sigmoid"}, or
 #'   \code{"step"}. Default: \code{"linear"}.
 #' @param renumber Logical. If \code{TRUE} (default), renumber all clusters
@@ -658,10 +661,10 @@ split_clusters_manually <- function(clustering_obj,
                                      k = NULL,
                                      use_dynamic = TRUE,
                                      min_cluster_size = 3,
-                                     discretize = FALSE,
+                                     discretize = TRUE,
                                      gain_threshold = 0.2,
-                                     loss_threshold = -0.2,
-                                     use_size_weighting = TRUE,
+                                     loss_threshold = -0.1,
+                                     use_size_weighting = FALSE,
                                      min_bins_full_weight = 5,
                                      weight_function = "linear",
                                      renumber = TRUE) {
@@ -1117,44 +1120,50 @@ weighted_euclidean_distance <- function(data_matrix, weight_matrix) {
 
 #' Perform weighted hierarchical clustering on LogR data
 #'
-#' A clustering function that addresses two common challenges in copy number analysis:
+#' This is the recommended default clustering entry point for ARMS. By default it
+#' discretizes logR values to gain/neutral/loss categories before clustering, which
+#' makes samples with identical CNA profiles but different tumor purity cluster together.
+#'
+#' It addresses two challenges in copy number analysis:
 #' \enumerate{
 #'   \item \strong{Purity differences}: Samples with identical CNA profiles but different
-#'     tumor purity show different logR magnitudes. Discretization converts continuous
-#'     values to gain/neutral/loss categories, making purity-different but CNA-identical
-#'     samples cluster together.
+#'     tumor purity show different logR magnitudes. Discretization (on by default) converts
+#'     continuous values to gain/neutral/loss categories, making purity-different but
+#'     CNA-identical samples cluster together.
 #'   \item \strong{Small aberrations}: Small altered regions (1-2 bins) may represent
-#'     sequencing artifacts or missed calls. Size weighting reduces the influence of
-#'     these small regions on clustering.
+#'     sequencing artifacts or missed calls. Size weighting (\emph{experimental}, off by
+#'     default) reduces the influence of these small regions on clustering.
 #' }
 #'
 #' @param logr_matrix LogR matrix (samples x genomic bins). Required.
 #' @param grid Genomic grid data frame from \code{load_ascat_profiles()}.
-#'   Required if \code{use_size_weighting = TRUE}. Contains chr, start, end columns
+#'   Required only if \code{use_size_weighting = TRUE}. Contains chr, start, end columns
 #'   for identifying chromosome boundaries.
 #' @param discretize Logical. If TRUE, discretize logR values to gain/neutral/loss
-#'   categories before clustering. Default: FALSE.
+#'   categories before clustering. Default: TRUE.
 #' @param gain_threshold LogR value above which is classified as gain. Default: 0.2.
-#' @param loss_threshold LogR value below which is classified as loss. Default: -0.2.
+#' @param loss_threshold LogR value below which is classified as loss. Default: -0.1.
 #' @param discretize_mode Discretization mode: "ternary" (+1/0/-1 for gain/neutral/loss)
 #'   or "binary" (1/0 for altered/neutral). Default: "ternary".
-#' @param use_size_weighting Logical. If TRUE, weight bins by the size of their
-#'   contiguous altered region. Default: TRUE.
-#' @param min_bins_full_weight Minimum number of contiguous altered bins for full weight.
-#'   Regions smaller than this get reduced weight. Default: 5.
-#' @param weight_function Weight function for region sizes: "linear" (weight = size/min_bins,
-#'   capped at 1), "sigmoid" (smooth S-curve transition), or "step" (0 below threshold, 1 above).
-#'   Default: "linear".
-#' @param weight_scope How to compute region sizes: "per_sample" (independently per sample)
-#'   or "consensus" (using union of altered regions across samples). Default: "per_sample".
+#' @param use_size_weighting Logical. \emph{Experimental.} If TRUE, weight bins by the size
+#'   of their contiguous altered region (requires \code{grid}). Default: FALSE.
+#' @param min_bins_full_weight \emph{Experimental (size weighting).} Minimum number of
+#'   contiguous altered bins for full weight. Regions smaller than this get reduced weight.
+#'   Default: 5.
+#' @param weight_function \emph{Experimental (size weighting).} Weight function for region
+#'   sizes: "linear" (weight = size/min_bins, capped at 1), "sigmoid" (smooth S-curve
+#'   transition), or "step" (0 below threshold, 1 above). Default: "linear".
+#' @param weight_scope \emph{Experimental (size weighting).} How to compute region sizes:
+#'   "per_sample" (independently per sample) or "consensus" (using union of altered regions
+#'   across samples). Default: "per_sample".
 #' @param method Linkage method for hierarchical clustering. Default: "ward.D2".
 #' @param use_dynamic Logical. If TRUE, use dynamic tree cut. Default: TRUE.
 #' @param k Number of clusters for fixed cut (if \code{use_dynamic = FALSE}). Default: 20.
-#' @param min_cluster_size Minimum cluster size for dynamic tree cut. Default: 10.
+#' @param min_cluster_size Minimum cluster size for dynamic tree cut. Default: 3.
 #' @param max_module_size Maximum module size before recursive splitting. Default: 100.
-#' @param silhouette_threshold Minimum silhouette improvement for accepting splits. Default: 0.05.
+#' @param silhouette_threshold Minimum silhouette improvement for accepting splits. Default: 0.001.
 #' @param gap_threshold Minimum gap statistic for accepting splits. Default: 0.01
-#' @param pvclust_threshold Minimum AU p-value for accepting splits. Default: 0.95.
+#' @param pvclust_threshold Minimum AU p-value for accepting splits. Default: 0.3.
 #' @param max_recursion_depth Maximum depth for recursive splitting. Default: 4.
 #'
 #' @return A list containing:
@@ -1174,28 +1183,22 @@ weighted_euclidean_distance <- function(data_matrix, weight_matrix) {
 #' \dontrun{
 #' profiles <- load_ascat_profiles("path/to/profiles", resolution = 1e6)
 #'
-#' # Basic weighted clustering with size weighting
+#' # Recommended default: discretized clustering (handles purity differences).
+#' # No extra arguments needed.
 #' result <- weighted_hierarchical_clustering(
-#'   logr_matrix = profiles$logr_matrix,
-#'   grid = profiles$grid,
-#'   use_size_weighting = TRUE,
-#'   min_bins_full_weight = 5
+#'   logr_matrix = profiles$logr_matrix
 #' )
 #'
-#' # Clustering with discretization (handles purity differences)
-#' result_discrete <- weighted_hierarchical_clustering(
+#' # Cluster on continuous logR instead of discretized categories
+#' result_continuous <- weighted_hierarchical_clustering(
 #'   logr_matrix = profiles$logr_matrix,
-#'   grid = profiles$grid,
-#'   discretize = TRUE,
-#'   gain_threshold = 0.2,
-#'   loss_threshold = -0.2
+#'   discretize = FALSE
 #' )
 #'
-#' # Combined approach: discretization + size weighting
-#' result_both <- weighted_hierarchical_clustering(
+#' # Experimental: add size weighting (requires grid)
+#' result_weighted <- weighted_hierarchical_clustering(
 #'   logr_matrix = profiles$logr_matrix,
 #'   grid = profiles$grid,
-#'   discretize = TRUE,
 #'   use_size_weighting = TRUE
 #' )
 #'
@@ -1205,22 +1208,22 @@ weighted_euclidean_distance <- function(data_matrix, weight_matrix) {
 #' }
 weighted_hierarchical_clustering <- function(logr_matrix,
                                               grid = NULL,
-                                              discretize = FALSE,
+                                              discretize = TRUE,
                                               gain_threshold = 0.2,
-                                              loss_threshold = -0.2,
+                                              loss_threshold = -0.1,
                                               discretize_mode = "ternary",
-                                              use_size_weighting = TRUE,
+                                              use_size_weighting = FALSE,
                                               min_bins_full_weight = 5,
                                               weight_function = "linear",
                                               weight_scope = "per_sample",
                                               method = "ward.D2",
                                               use_dynamic = TRUE,
                                               k = 20,
-                                              min_cluster_size = 10,
+                                              min_cluster_size = 3,
                                               max_module_size = 100,
-                                              silhouette_threshold = 0.05,
+                                              silhouette_threshold = 0.001,
                                               gap_threshold = 0.01,
-                                              pvclust_threshold = 0.95,
+                                              pvclust_threshold = 0.3,
                                               max_recursion_depth = 4) {
 
   # Input validation
@@ -1396,16 +1399,20 @@ weighted_hierarchical_clustering <- function(logr_matrix,
 
 #' Perform hierarchical clustering on LogR data with dynamic tree cut
 #'
+#' Clusters samples on continuous logR values. For the recommended default workflow
+#' (which discretizes logR to handle purity differences) use
+#' \code{\link{weighted_hierarchical_clustering}} instead.
+#'
 #' @param logr_matrix LogR matrix (samples x positions)
 #' @param method Linkage method (default: "ward.D2")
 #' @param use_dynamic Use dynamic tree cut (default: TRUE)
 #' @param k Number of clusters for fixed cut (if use_dynamic = FALSE)
-#' @param min_cluster_size Minimum cluster size
-#' @param max_module_size Maximum module size for recursive splitting
-#' @param silhouette_threshold Minimum silhouette improvement threshold
-#' @param gap_threshold Minimum gap statistic threshold
-#' @param pvclust_threshold Minimum AU p-value threshold
-#' @param max_recursion_depth Maximum recursion depth
+#' @param min_cluster_size Minimum cluster size (default: 3)
+#' @param max_module_size Maximum module size for recursive splitting (default: 100)
+#' @param silhouette_threshold Minimum silhouette improvement threshold (default: 0.001)
+#' @param gap_threshold Minimum gap statistic threshold (default: 0.01)
+#' @param pvclust_threshold Minimum AU p-value threshold (default: 0.3)
+#' @param max_recursion_depth Maximum recursion depth (default: 4)
 #' @param ascat_compat Logical. If TRUE, default to ASCAT workflow settings
 #'   when arguments are omitted (e.g., hierarchical_k = 9).
 #' @return List with clusters, hclust_obj, and dist_matrix
@@ -1421,11 +1428,11 @@ hierarchical_clustering <- function(logr_matrix,
                                     method = "ward.D2",
                                     use_dynamic = TRUE,
                                     k = 20,
-                                    min_cluster_size = 10,
+                                    min_cluster_size = 3,
                                     max_module_size = 100,
-                                    silhouette_threshold = 0.05,
+                                    silhouette_threshold = 0.001,
                                     gap_threshold = 0.01,
-                                    pvclust_threshold = 0.95,
+                                    pvclust_threshold = 0.3,
                                     max_recursion_depth = 4,
                                     ascat_compat = FALSE) {
 

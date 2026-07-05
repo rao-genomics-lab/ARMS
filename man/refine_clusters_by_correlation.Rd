@@ -2,7 +2,7 @@
 % Please edit documentation in R/analysis.R
 \name{refine_clusters_by_correlation}
 \alias{refine_clusters_by_correlation}
-\title{Merge similar clusters based on correlation}
+\title{Merge similar clusters based on correlation (experimental)}
 \usage{
 refine_clusters_by_correlation(logr_matrix, clusters, cor_threshold = 0.9)
 }
@@ -17,7 +17,10 @@ refine_clusters_by_correlation(logr_matrix, clusters, cor_threshold = 0.9)
 Refined cluster assignments
 }
 \description{
-Merge similar clusters based on correlation
+\strong{Experimental.} An automatic, correlation-based alternative to the
+recommended manual refinement workflow (\code{\link{split_clusters_manually}} +
+\code{\link{merge_clusters_manually}}). Merges clusters whose centroid logR
+profiles correlate above \code{cor_threshold}. Not part of the default pipeline.
 }
 \examples{
 \dontrun{
